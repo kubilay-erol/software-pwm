@@ -1,12 +1,14 @@
 
 
+#pragma once
 
-#include<cstdint>
-#include<new>
+#include <cstdint>
+#include <new>
 
-#include<memalloc>
-#include<digioreg>
-#include<time>
+#include <memalloc.hpp>
+#include <digioreg.hpp>
+#include <time.hpp>
+
 
 class SoftwarePWM {
     
@@ -27,12 +29,15 @@ public:
 
         SoftwarePWM* ptr = ::new (MemoryAllocator::alloc(sizeof(SoftwarePWM))) SoftwarePWM(pa, pc, c, st);
 
+        uint32_t pin_num = (reinterpret_cast<uint32_t>(pa) - 0x60009004) / 4;
+        uint32_t dynamic_mask = (1 << pin_num);
+
         DigIOReg* pwm_pin = DigIOReg::digioreg(
         GPIO_ENABLE_REG,
         DigIOReg::Mode::output,  
-        GPIO2_MODE_REG,          
+        pa,          
         GPIO_DATA_REG,           
-        (1 << 2),               
+        dynamic_mask,               
         MemoryAllocator::alloc(sizeof(DigIOReg)));
 
         Time* time_in = ::new (MemoryAllocator::alloc(sizeof(Time))) Time();
@@ -41,8 +46,7 @@ public:
         ptr->time_ins = time_in;
         return ptr;
 
-        
-
+    
     }
 
     void on() {
@@ -55,6 +59,7 @@ public:
             uint32_t off_time = count - on_time;
 
             pwm_reg->SetHigh();
+
             time_ins->set_ref(0);
             while (!time_ins->is_delay_complete(on_time, 0)) {
                 if (status == 0) {
